@@ -36,7 +36,7 @@
 
 ### {标题}
 
-- **来源**：{URL}
+- **来源**：{完整可点击URL，如 https://x.com/username/status/123456 。禁止只写 @username 或平台名称}
 - **评分**：Impact {N}/5 | Novelty {N}/5 | Credibility {N}/5 | Timeliness {N}/5 | Relevance {N}/5 | **总分 {N.N}**
 - **为什么重要**：{一句话解释这条情报的意义}
 - **摘要**：{英文原文核心内容}
@@ -51,7 +51,7 @@
 
 ### {标题}
 
-- **来源**：{URL}
+- **来源**：{完整可点击URL，如 https://x.com/username/status/123456 。禁止只写 @username 或平台名称}
 - **评分**：Impact {N}/5 | Novelty {N}/5 | Credibility {N}/5 | **总分 {N.N}**
 - **为什么重要**：{一句话}
 - **摘要**：{内容}
@@ -81,7 +81,7 @@
 
 ### {标题}
 
-- **来源**：{URL}
+- **来源**：{完整可点击URL，如 https://x.com/username/status/123456 。禁止只写 @username 或平台名称}
 - **评分**：**总分 {N.N}**
 - **为什么重要**：{一句话}
 - **内容**：{摘要}

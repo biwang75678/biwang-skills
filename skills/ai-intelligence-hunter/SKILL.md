@@ -163,7 +163,20 @@ ls /tmp/.intelligence-hunter/{timestamp}/tracked-*.md
    - 切换到 **Top** 标签页获取高质量帖子
    - 适当滚动 2-3 次加载更多
    - snapshot 提取帖子数据
-3. 对每条有价值的帖子，记录：作者、原文、发布时间、互动数据、帖子链接
+3. 对每条有价值的帖子，**必须**按以下格式记录（缺少任何字段视为无效条目）：
+
+   ```
+   ### {帖子主题一句话概括}
+   - **作者**: @{username}
+   - **链接**: https://x.com/{username}/status/{id}
+   - **时间**: {YYYY-MM-DD HH:MM}
+   - **互动**: ❤️{likes} 🔄{retweets} 💬{replies} 👁{views}
+   - **原文**: {英文原文，不省略}
+   - **中文**: {中文翻译}
+   ```
+
+   **帖子链接获取方式**：在搜索结果页 snapshot 后，提取每条帖子中 `href` 属性包含 `/status/` 的链接，即为 `https://x.com/{username}/status/{id}` 格式。也可点击帖子的时间戳展开详情页，从浏览器地址栏获取。**`@username` 不是链接，必须是完整 URL。**
+
 4. 切换到 **People** 标签页，发现相关领域的 KOL
 5. **必须写入** `round-{NN}-x.md`
 
@@ -185,14 +198,26 @@ ls -la /tmp/.intelligence-hunter/{timestamp}/round-{NN}-x.md
 
 **必须追加到** `findings-summary.md` 的对应章节。首轮时创建此文件。
 
+`findings-summary.md` 中每条发现**必须**包含来源链接，格式：
+
+```
+### {发现标题}
+- **来源类型**: X帖子 / Grok分析 / 博客 / 论文 / 社区
+- **来源URL**: {完整URL，不可为空，不可只写@username}
+- **发现轮次**: Round {NN}
+- **摘要**: {内容}
+```
+
+如果来源是 Grok 分析且 Grok 引用了 X 帖子，来源URL 填 Grok 引用的帖子链接。如果 Grok 未给出具体帖子链接，来源URL 填 `grok://round-{NN}` 并在摘要中注明。
+
 **第 4 步：Grok 追问 → 写入 round-{NN}-grok.md**
 
 1. 浏览器导航到 `https://x.com/i/grok`
-2. 基于本轮 X 发现的关键线索构造问题，例如：
-   - `"What are the latest developments about {本轮发现的关键概念}?"`
-   - `"Who else is discussing {本轮发现的热门话题} on X?"`
-   - `"{本轮发现的重大事件} — what's the community reaction and potential impact?"`
-3. 记录 Grok 的完整回复（含引用的 X 帖子链接）
+2. 基于本轮 X 发现的关键线索构造问题。**每条查询末尾必须加上 URL 要求**，例如：
+   - `"What are the latest developments about {本轮发现的关键概念}? Please include the original X post URLs (x.com/username/status/id format) for each finding you reference."`
+   - `"Who else is discussing {本轮发现的热门话题} on X? Include direct links to their most relevant posts."`
+   - `"{本轮发现的重大事件} — what's the community reaction and potential impact? Include post URLs for key reactions."`
+3. 记录 Grok 的完整回复（含引用的 X 帖子链接）。如果 Grok 返回了 `@username` 但没给帖子 URL，你需要自己去 X 搜索该用户的相关帖子获取 URL。
 4. **必须写入** `round-{NN}-grok.md`
 5. **在文件末尾写明**："本轮新增发现数：{N}"（N = 本轮 findings-summary.md 中新增的条目数）
 
@@ -430,9 +455,21 @@ ls -la /tmp/.intelligence-hunter/{timestamp}/*.md
 - 可能的未来发展路径
 - 提炼 3-5 条深刻的 Insights
 
-### 检查点
+### 检查点（阶段六）
 
-汇总分析完成，准备进入阶段七。
+**6A. 来源 URL 覆盖率检查**
+
+执行：
+```bash
+total=$(grep -c "^### " /tmp/.intelligence-hunter/{timestamp}/findings-summary.md); with_url=$(grep -c "https://" /tmp/.intelligence-hunter/{timestamp}/findings-summary.md); echo "来源URL覆盖率: $with_url / $total"
+```
+
+**要求**：有 URL 的条目数占总条目数的比例必须 ≥ 70%。如果不足：
+1. 回到中间文件（round-*.md），找到缺失 URL 的条目对应的帖子
+2. 浏览器打开 X 搜索该帖子，获取完整 URL，补充到 findings-summary.md
+3. 重新执行此检查点
+
+**6B. 汇总分析完成**，准备进入阶段七。
 
 ---
 
@@ -498,7 +535,7 @@ wc -c memory/intelligence-hunter/{chat_id}.targets.md memory/intelligence-hunter
 1. **浏览器操作务必使用 `profile="user"`**，X 已预登录
 2. **搜索要充分**：不要只搜一个查询就结束，多维度多语言搜索
 3. **当天新帖优先**：日报的核心价值是时效性
-4. **原文链接必须保留**：每条情报都要有可追溯的原文链接
+4. **原文链接必须是完整 URL**：`https://x.com/username/status/123456` 才是有效链接，`@username` 或 `@techxutkarsh 分享` **不是链接**。每条情报必须有可直接点击打开的完整 URL。报告中出现"来源：@xxx"而非完整 URL 视为不合格，必须补充
 5. **翻译要准确**：专业术语保留英文原文
 6. **关注要全面**：必须遍历机构列表 + KOL 列表 + 新发现人物，不能只关注一两个
 7. **深度思考**：不要只做信息搬运，要有分析和洞察
