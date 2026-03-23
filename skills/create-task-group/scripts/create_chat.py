@@ -145,6 +145,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="创建飞书任务群")
     parser.add_argument("--name", required=True, help="群名称，如 [任务-C记1]重构登录模块")
     parser.add_argument("--agent-id", required=True, help="OpenClaw agent ID（如 cji1）")
+    parser.add_argument("--user-id", default="", help="用户 open_id（如 ou_xxx），不传则自动从 sessions.json 发现")
     parser.add_argument("--output", default="/tmp/.create-task-group/group_info.json", help="输出文件路径")
     args = parser.parse_args()
 
@@ -153,8 +154,11 @@ def main() -> None:
     creds = load_feishu_creds(config, account_id)
     token = get_tenant_token(creds["app_id"], creds["app_secret"])
 
-    user_id = discover_user_id(args.agent_id)
-    user_ids = [user_id] if user_id else []
+    user_id = args.user_id or discover_user_id(args.agent_id)
+    if not user_id:
+        print("错误：无法确定用户 ID，请通过 --user-id 参数指定", file=sys.stderr)
+        sys.exit(1)
+    user_ids = [user_id]
 
     chat_id = create_group(token, args.name, user_ids=user_ids or None, owner_id=user_id)
 
