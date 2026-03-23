@@ -138,8 +138,14 @@ deploy.sh 会自动在目标目录生成：
 部署完成后脚本会自动运行 `openclaw skills check` 验证。如需让龙虾加载新 skill，还需重启 gateway：
 
 ```bash
-openclaw gateway restart
+# 正常重启（服务模式）
+cd ~ && openclaw gateway restart
+
+# 如果 restart 后仍报 ENOENT，说明有野进程占端口，需先手动杀掉
+kill $(lsof -ti:18789); sleep 2; cd ~ && openclaw gateway install --force
 ```
+
+**注意**：必须先 `cd ~`，避免在临时目录下启动 gateway 导致 ENOENT 崩溃（Claude Code 的 cwd 通常在 `/tmp/` 下）。
 
 ## 7) 与 feat-dev/ 的关系
 

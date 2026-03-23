@@ -7,7 +7,7 @@
 #   deploy.sh                          # 部署全部 skill
 #   deploy.sh deep-research            # 部署指定 skill
 #   deploy.sh deep-research another    # 批量部署指定 skill
-#   deploy.sh --dry-run                # 模拟运行（不实际写入）
+#   deploy.sh --dry-run                # 模拟运行(不实际写入)
 #   deploy.sh --dry-run deep-research  # 模拟运行指定 skill
 #
 
@@ -86,7 +86,7 @@ scan_secrets() {
     done
 
     if $found; then
-        error "skill [$skill_name] 中发现疑似敏感信息（见上方匹配行），部署已中止。请先清除敏感信息再重试。"
+        error "skill [$skill_name] 中发现疑似敏感信息(见上方匹配行)，部署已中止。请先清除敏感信息再重试。"
     fi
 }
 
@@ -123,7 +123,7 @@ if [[ ${#SKILLS[@]} -eq 0 ]]; then
         if [[ -f "$d/SKILL.md" ]]; then
             SKILLS+=("$name")
         else
-            warn "跳过 $name（缺少 SKILL.md）"
+            warn "跳过 $name (缺少 SKILL.md)"
         fi
     done
 fi
@@ -178,8 +178,8 @@ if [[ ${#DEPLOYED[@]} -gt 0 ]]; then
             new_version="0.1.0"
         fi
         echo "[DRY-RUN] 将创建/更新 $PLUGIN_MANIFEST (version: $new_version)"
-        echo "[DRY-RUN] 将创建/更新 $PLUGIN_ENTRY（插件入口）"
-        echo "[DRY-RUN] 将创建/更新 $PLUGIN_PACKAGE（package.json）"
+        echo "[DRY-RUN] 将创建/更新 $PLUGIN_ENTRY(插件入口)"
+        echo "[DRY-RUN] 将创建/更新 $PLUGIN_PACKAGE(package.json)"
     else
         mkdir -p "$OPENCLAW_PLUGIN_DIR"
 
@@ -189,7 +189,7 @@ if [[ ${#DEPLOYED[@]} -gt 0 ]]; then
             new_version="0.1.0"
         fi
 
-        # 生成 openclaw.plugin.json（声明 skills 路径）
+        # 生成 openclaw.plugin.json(声明 skills 路径)
         python3 -c "
 import json
 manifest = {
@@ -205,22 +205,29 @@ with open('$PLUGIN_MANIFEST', 'w') as f:
 print('openclaw.plugin.json 已更新: version $new_version')
 "
 
-        # 生成 index.js（最小插件入口，让 OpenClaw 发现此插件）
+        # 生成 index.js(最小插件入口，含 register 函数)
         cat > "$PLUGIN_ENTRY" << 'INDEXEOF'
-export default {
+"use strict";
+const plugin = {
   id: "biwang-skills",
-  configSchema: { type: "object", properties: {} }
+  name: "Biwang Custom Skills",
+  description: "Private custom skills for biwang",
+  configSchema: { type: "object", additionalProperties: false, properties: {} },
+  register(api) {
+    // 纯 skill 插件，无需注册 channel/tool/provider
+  }
 };
+module.exports = plugin;
+module.exports.default = plugin;
 INDEXEOF
         info "index.js 已生成"
 
-        # 生成 package.json
+        # 生成 package.json(CommonJS 格式，与 openclaw-lark 一致)
         python3 -c "
 import json
 pkg = {
     'name': 'biwang-skills',
     'version': '$new_version',
-    'type': 'module',
     'main': 'index.js',
     'openclaw': {
         'extensions': ['./index.js']
