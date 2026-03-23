@@ -127,9 +127,19 @@ deploy/deploy.sh --dry-run deep-research
 ```
 
 部署目标：
-- **OpenClaw**：`~/.openclaw/extensions/biwang-skills/skills/`（作为独立自定义插件，与飞书插件解耦，所有 agent 自动可用）
+- **OpenClaw**：`~/.openclaw/extensions/biwang-skills/`（作为独立自定义插件，与飞书插件解耦，所有 agent 自动可用）
 
-部署时自动排除 `dev-plans/` 目录（开发记录不进入运行时）。
+deploy.sh 会自动在目标目录生成：
+- `openclaw.plugin.json` — 插件 manifest（声明 skills 路径，version 自动递增）
+- `index.js` — 最小插件入口（让 OpenClaw 发现此插件）
+- `package.json` — 包元数据
+- `skills/{skill-name}/` — skill 文件（排除 `dev-plans/`）
+
+部署完成后脚本会自动运行 `openclaw skills check` 验证。如需让龙虾加载新 skill，还需重启 gateway：
+
+```bash
+openclaw gateway restart
+```
 
 ## 7) 与 feat-dev/ 的关系
 

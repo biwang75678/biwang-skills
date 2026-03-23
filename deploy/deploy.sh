@@ -22,6 +22,8 @@ OPENCLAW_PLUGIN_DIR="$HOME/.openclaw/extensions/biwang-skills"
 OPENCLAW_SKILLS_DIR="$OPENCLAW_PLUGIN_DIR/skills"
 
 PLUGIN_MANIFEST="$OPENCLAW_PLUGIN_DIR/openclaw.plugin.json"
+PLUGIN_ENTRY="$OPENCLAW_PLUGIN_DIR/index.js"
+PLUGIN_PACKAGE="$OPENCLAW_PLUGIN_DIR/package.json"
 
 # ── 参数解析 ─────────────────────────────────────────
 DRY_RUN=false
@@ -167,7 +169,7 @@ done
 
 # 生成/更新 OpenClaw 插件 manifest
 if [[ ${#DEPLOYED[@]} -gt 0 ]]; then
-    info "── 更新 OpenClaw 插件 manifest ──"
+    info "── 更新 OpenClaw 插件配置 ──"
 
     if $DRY_RUN; then
         if [[ -f "$PLUGIN_MANIFEST" ]]; then
@@ -176,6 +178,8 @@ if [[ ${#DEPLOYED[@]} -gt 0 ]]; then
             new_version="0.1.0"
         fi
         echo "[DRY-RUN] 将创建/更新 $PLUGIN_MANIFEST (version: $new_version)"
+        echo "[DRY-RUN] 将创建/更新 $PLUGIN_ENTRY（插件入口）"
+        echo "[DRY-RUN] 将创建/更新 $PLUGIN_PACKAGE（package.json）"
     else
         mkdir -p "$OPENCLAW_PLUGIN_DIR"
 
@@ -185,18 +189,47 @@ if [[ ${#DEPLOYED[@]} -gt 0 ]]; then
             new_version="0.1.0"
         fi
 
+        # 生成 openclaw.plugin.json（声明 skills 路径）
         python3 -c "
 import json
 manifest = {
     'id': 'biwang-skills',
     'name': 'Biwang Custom Skills',
     'version': '$new_version',
-    'skills': ['./skills']
+    'skills': ['./skills'],
+    'configSchema': {'type': 'object', 'additionalProperties': False, 'properties': {}}
 }
 with open('$PLUGIN_MANIFEST', 'w') as f:
     json.dump(manifest, f, indent=2, ensure_ascii=False)
     f.write('\n')
-print('manifest 已更新: version $new_version')
+print('openclaw.plugin.json 已更新: version $new_version')
+"
+
+        # 生成 index.js（最小插件入口，让 OpenClaw 发现此插件）
+        cat > "$PLUGIN_ENTRY" << 'INDEXEOF'
+export default {
+  id: "biwang-skills",
+  configSchema: { type: "object", properties: {} }
+};
+INDEXEOF
+        info "index.js 已生成"
+
+        # 生成 package.json
+        python3 -c "
+import json
+pkg = {
+    'name': 'biwang-skills',
+    'version': '$new_version',
+    'type': 'module',
+    'main': 'index.js',
+    'openclaw': {
+        'extensions': ['./index.js']
+    }
+}
+with open('$PLUGIN_PACKAGE', 'w') as f:
+    json.dump(pkg, f, indent=2, ensure_ascii=False)
+    f.write('\n')
+print('package.json 已生成')
 "
     fi
     echo ""
