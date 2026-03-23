@@ -15,20 +15,30 @@ description: "AI 情报猎手：在 X/Twitter 上进行主题情报搜集、KOL 
 
 ```
 收到主题 + 附加要求
-  ├── 阶段〇：初始化（读取 memory，确定模式，加载参考文档）
-  ├── 阶段一：已知目标跟踪（Cron 增量模式）
-  ├── 阶段二：X ↔ Grok 互搏搜索（按需迭代，上限 20 轮，/tmp 文件中转）
-  ├── 阶段三：全面关注 + 付费跳过
-  ├── 阶段四：多源情报采集（博客、社区、论文）
-  ├── 阶段五：deep-research 深度补充
-  ├── 阶段六：汇总分析（去重、评分、分类、翻译、发散思考）
-  ├── 阶段七：产出（飞书文档 + 更新 memory）
+  ├── 阶段〇：初始化 [必须执行]
+  ├── 阶段一：已知目标跟踪 [Cron 增量模式必须执行]
+  ├── 阶段二：X ↔ Grok 互搏搜索 [必须执行]
+  ├── 阶段三：全面关注 + 付费跳过 [必须执行]
+  ├── 阶段四：多源情报采集 [必须执行]
+  ├── 阶段五：deep-research 深度补充 [必须执行]
+  ├── 阶段六：汇总分析 [必须执行]
+  ├── 阶段七：产出 + 更新 memory [必须执行]
   └── 产出：飞书情报日报文档
 ```
 
+## 执行纪律
+
+**你必须严格遵守以下规则，无一例外：**
+
+1. **所有标注 [必须执行] 的阶段不可跳过，不可合并，不可简化。** 每个阶段都有独立的职责，必须逐一完成。
+2. **每个阶段末尾的"检查点"必须通过才能进入下一阶段。** 检查点要求你执行 `ls` 命令确认文件已写入磁盘。
+3. **所有中间文件必须实际写入磁盘。** 不是在 context 中描述"我已写入"，而是真正调用 write 工具写文件，然后用 `ls` 确认。
+4. **即使 context 接近上限，也不可跳过阶段。** 应优先将中间结果写入 /tmp 文件以释放 context 空间。如因 context 限制确实无法继续，在当前阶段结束时停下并告知用户"因 context 限制暂停于阶段N"，**绝不可直接跳到最后阶段生成报告**。
+5. **阶段顺序不可更改。** 必须按 〇→一→二→三→四→五→六→七 的顺序执行（首次执行跳过阶段一）。
+
 ---
 
-## 阶段〇：初始化
+## 阶段〇：初始化 [必须执行]
 
 ### 0.1 确定当前群 chat_id
 
@@ -67,11 +77,19 @@ mkdir -p /tmp/.intelligence-hunter/{timestamp}
 3. 为当天新帖构造带 `since:{today}` 的查询
 4. 为高质量帖子构造带 `min_faves:50` 或 `min_faves:100` 的查询
 
+### 检查点
+
+执行以下命令确认初始化完成：
+```bash
+ls /tmp/.intelligence-hunter/{timestamp}/
+```
+目录必须存在。确认后进入下一阶段。
+
 ---
 
-## 阶段一：已知目标跟踪（仅 Cron 增量模式）
+## 阶段一：已知目标跟踪 [Cron 增量模式必须执行]
 
-> 首次执行时跳过此阶段。
+> 首次执行时跳过此阶段，直接进入阶段二。
 
 从 `{chat_id}.targets.md` 读取关注列表，逐项检查新动态：
 
@@ -96,9 +114,17 @@ mkdir -p /tmp/.intelligence-hunter/{timestamp}
 2. 检查是否有新内容（对比 history.md 中的已知条目）
 3. 如有新内容，提取写入 `/tmp/.intelligence-hunter/{timestamp}/tracked-sources.md`
 
+### 检查点
+
+执行：
+```bash
+ls /tmp/.intelligence-hunter/{timestamp}/tracked-*.md
+```
+至少有一个 tracked 文件。确认后进入阶段二。
+
 ---
 
-## 阶段二：X ↔ Grok 互搏搜索
+## 阶段二：X ↔ Grok 互搏搜索 [必须执行]
 
 **核心原则**：X 搜索与 Grok 深度追问双向迭代，互为输入输出，按需进行——有新线索就继续追，没有就停。
 
@@ -114,11 +140,13 @@ mkdir -p /tmp/.intelligence-hunter/{timestamp}
   └── next-queries.md          # 下一轮待执行的查询列表
 ```
 
-### 每轮执行流程
+### 每轮严格执行序列
+
+**每一轮必须严格按以下 7 步执行，不可省略任何步骤：**
 
 **Round N（N = 01, 02, ...）**：
 
-#### Step 1：X 搜索
+**第 1 步：X 搜索**
 
 1. 读取 `next-queries.md`（首轮使用阶段〇生成的初始查询）
 2. 对每条查询：
@@ -129,9 +157,17 @@ mkdir -p /tmp/.intelligence-hunter/{timestamp}
    - snapshot 提取帖子数据
 3. 对每条有价值的帖子，记录：作者、原文、发布时间、互动数据、帖子链接
 4. 切换到 **People** 标签页，发现相关领域的 KOL
-5. 全部结果写入 `round-{NN}-x.md`
+5. **必须写入** `round-{NN}-x.md`
 
-#### Step 2：精炼 X 发现
+**第 2 步：确认 X 结果文件**
+
+执行：
+```bash
+ls -la /tmp/.intelligence-hunter/{timestamp}/round-{NN}-x.md
+```
+文件必须存在且大小 > 0。
+
+**第 3 步：精炼 X 发现 → 更新 findings-summary.md**
 
 从 `round-{NN}-x.md` 提取关键线索：
 - 新人物（之前未在 findings-summary.md 中出现的）
@@ -139,9 +175,9 @@ mkdir -p /tmp/.intelligence-hunter/{timestamp}
 - 新事件/公告
 - 被多人引用的链接/论文
 
-追加到 `findings-summary.md` 的对应章节。
+**必须追加到** `findings-summary.md` 的对应章节。首轮时创建此文件。
 
-#### Step 3：Grok 追问
+**第 4 步：Grok 追问 → 写入 round-{NN}-grok.md**
 
 1. 浏览器导航到 `https://x.com/i/grok`
 2. 基于本轮 X 发现的关键线索构造问题，例如：
@@ -149,27 +185,37 @@ mkdir -p /tmp/.intelligence-hunter/{timestamp}
    - `"Who else is discussing {本轮发现的热门话题} on X?"`
    - `"{本轮发现的重大事件} — what's the community reaction and potential impact?"`
 3. 记录 Grok 的完整回复（含引用的 X 帖子链接）
-4. 写入 `round-{NN}-grok.md`
+4. **必须写入** `round-{NN}-grok.md`
 
-#### Step 4：精炼 Grok 发现
+**第 5 步：确认 Grok 结果文件**
+
+执行：
+```bash
+ls -la /tmp/.intelligence-hunter/{timestamp}/round-{NN}-grok.md
+```
+文件必须存在且大小 > 0。
+
+**第 6 步：精炼 Grok 发现 → 更新 findings-summary.md**
 
 从 `round-{NN}-grok.md` 提取新线索，与 `findings-summary.md` 对比去重：
 - Grok 提到的新人物 → 记录
 - Grok 提到的新链接/论文 → 记录
 - Grok 的分析观点 → 记录
 
-追加到 `findings-summary.md`。
+**必须追加到** `findings-summary.md`。
 
-#### Step 5：判断是否继续
+**第 7 步：判断是否继续**
 
 - **有新线索**（findings-summary.md 本轮有新增内容）：
   - 从新线索中构造下一轮 X 查询（如 `from:{grok提到的新人物}`、`"{新概念}"`）
-  - 写入 `next-queries.md`
-  - 继续 Round N+1
+  - **必须写入** `next-queries.md`
+  - 输出："Round {N} 完成，发现新线索，继续 Round {N+1}"
+  - 继续下一轮
 - **无新线索**（本轮 Grok 未返回 findings-summary.md 中没有的内容）：
-  - 互搏结束，进入阶段三
+  - 输出："Round {N} 完成，无新线索，互搏结束，共 {N} 轮"
+  - 退出循环
 
-#### Step 6（可选）：插入 deep-research
+**可选：插入 deep-research**
 
 如本轮发现了重大话题/事件，可插入 deep-research quick 模式：
 - 调用 deep-research skill，查询该话题的 web 信息
@@ -182,11 +228,21 @@ mkdir -p /tmp/.intelligence-hunter/{timestamp}
 - **硬上限**：最多 20 轮
 - 核心原则：按需迭代，有线索就追，没有就停
 
+### 检查点
+
+互搏结束后，执行：
+```bash
+ls /tmp/.intelligence-hunter/{timestamp}/round-*.md /tmp/.intelligence-hunter/{timestamp}/findings-summary.md
+```
+必须存在 `findings-summary.md` 和至少一对 `round-01-x.md` + `round-01-grok.md`。确认后进入阶段三。
+
 ---
 
-## 阶段三：全面关注 + 付费跳过
+## 阶段三：全面关注 + 付费跳过 [必须执行]
 
 基于阶段二发现的人物和 `references/sources-list.md` 中的必关注列表，执行关注操作。
+
+**此阶段不可跳过。** 即使阶段二只发现了少量人物，也必须执行此阶段，至少检查 sources-list.md 中的机构官方账号。
 
 ### 关注范围
 
@@ -202,7 +258,7 @@ mkdir -p /tmp/.intelligence-hunter/{timestamp}
 对每个待关注账号：
 1. 浏览器打开用户主页
 2. snapshot 确认 Follow 按钮位置和状态
-3. 如果已关注 → 跳过
+3. 如果已关注 → 跳过，记录到 followed.md（状态=已关注）
 4. 点击 Follow 按钮
 5. snapshot 确认结果
 
@@ -211,7 +267,7 @@ mkdir -p /tmp/.intelligence-hunter/{timestamp}
 点击 Follow 按钮后，如果弹出付费/订阅对话框：
 1. **立即关闭对话框**（点击关闭/取消/X 按钮）
 2. **跳过该用户**，不要重试
-3. 在 memory 的 targets.md 中记录该用户，标注"付费"列为"是"、"已关注"列为"否"
+3. 记录该用户到 followed.md（状态=付费跳过）
 4. **不要因此中断整个流程**，继续处理下一个
 
 识别付费弹窗的关键词：Subscribe、Premium、付费、订阅、Subscription required
@@ -219,13 +275,23 @@ mkdir -p /tmp/.intelligence-hunter/{timestamp}
 ### 数量限制
 
 - 单次执行总计不超过 30 个新关注
-- 记录所有已关注和跳过的账号，写入 `/tmp/.intelligence-hunter/{timestamp}/followed.md`
+- **必须将所有操作结果写入** `/tmp/.intelligence-hunter/{timestamp}/followed.md`
+
+### 检查点
+
+执行：
+```bash
+ls -la /tmp/.intelligence-hunter/{timestamp}/followed.md
+```
+文件必须存在。确认后进入阶段四。
 
 ---
 
-## 阶段四：多源情报采集
+## 阶段四：多源情报采集 [必须执行]
 
 除 X/Grok 外，从其他信息源采集补充情报。
+
+**此阶段不可跳过。** 至少检查 2-3 个信息源。
 
 ### 4.1 AI 实验室官方博客
 
@@ -233,14 +299,14 @@ mkdir -p /tmp/.intelligence-hunter/{timestamp}
 - OpenAI Blog、Anthropic Research Blog、Google DeepMind Blog、Meta AI Blog 等
 - 检查首页/最新文章列表
 - 如有与主题相关的新文章，打开全文阅读，提取关键信息
-- 写入 `/tmp/.intelligence-hunter/{timestamp}/blogs.md`
+- **必须写入** `/tmp/.intelligence-hunter/{timestamp}/blogs.md`（即使无相关内容也写入"无相关新文章"）
 
 ### 4.2 技术社区
 
 - **Hacker News**：浏览器搜索主题相关的 HN 帖子
 - **Reddit r/MachineLearning**：浏览器搜索相关帖子
 - **HuggingFace**：浏览器打开 trending papers 页面
-- 写入 `/tmp/.intelligence-hunter/{timestamp}/community.md`
+- **必须写入** `/tmp/.intelligence-hunter/{timestamp}/community.md`
 
 ### 4.3 论文发现与分析
 
@@ -254,19 +320,27 @@ mkdir -p /tmp/.intelligence-hunter/{timestamp}
 3. 提取：核心方法、关键结论、实验结果、创新点
 4. 可选：调用 deep-research quick 模式搜索该论文的解读文章和相关工作
 
-写入 `/tmp/.intelligence-hunter/{timestamp}/papers.md`
+**必须写入** `/tmp/.intelligence-hunter/{timestamp}/papers.md`
 
 ### 4.4 模型/产品追踪
 
 - **LLM Stats**（llm-stats.com）：浏览器打开，检查最新模型发布
 - 其他追踪来源见 sources-list.md
-- 写入 `/tmp/.intelligence-hunter/{timestamp}/releases.md`
+- **必须写入** `/tmp/.intelligence-hunter/{timestamp}/releases.md`
+
+### 检查点
+
+执行：
+```bash
+ls /tmp/.intelligence-hunter/{timestamp}/blogs.md /tmp/.intelligence-hunter/{timestamp}/community.md /tmp/.intelligence-hunter/{timestamp}/papers.md
+```
+至少 blogs.md 和 papers.md 必须存在。确认后进入阶段五。
 
 ---
 
-## 阶段五：deep-research 深度补充
+## 阶段五：deep-research 深度补充 [必须执行]
 
-基于阶段二~四的所有发现，调用 deep-research skill 进行系统性补充。
+**此阶段不可跳过。你必须至少调用一次 deep-research skill（standard 模式）。这不是可选步骤。即使你认为前面已经收集了足够信息，仍然必须调用 deep-research。**
 
 ### 调用方式
 
@@ -279,7 +353,7 @@ mkdir -p /tmp/.intelligence-hunter/{timestamp}
    - ...
    重点补充 X/Twitter 和浏览器直接采集未覆盖的信息维度。
    ```
-3. deep-research 结果写入 `/tmp/.intelligence-hunter/{timestamp}/deep-research.md`
+3. **必须将 deep-research 结果写入** `/tmp/.intelligence-hunter/{timestamp}/deep-research.md`
 
 ### 结果反哺
 
@@ -287,13 +361,27 @@ mkdir -p /tmp/.intelligence-hunter/{timestamp}
 - 记录到 `findings-summary.md`
 - 如果价值很高，可以回到 X 搜索验证（但不重新进入互搏循环）
 
+### 检查点
+
+执行：
+```bash
+ls -la /tmp/.intelligence-hunter/{timestamp}/deep-research.md
+```
+文件必须存在且大小 > 0。确认后进入阶段六。
+
 ---
 
-## 阶段六：汇总分析
+## 阶段六：汇总分析 [必须执行]
 
 ### 6.1 汇总所有来源
 
 读取 `/tmp/.intelligence-hunter/{timestamp}/` 下的所有 `.md` 文件，合并全部情报。
+
+先执行：
+```bash
+ls /tmp/.intelligence-hunter/{timestamp}/*.md
+```
+确认所有中间文件都在。
 
 ### 6.2 去重
 
@@ -331,9 +419,15 @@ mkdir -p /tmp/.intelligence-hunter/{timestamp}
 - 可能的未来发展路径
 - 提炼 3-5 条深刻的 Insights
 
+### 检查点
+
+汇总分析完成，准备进入阶段七生成报告。
+
 ---
 
-## 阶段七：产出
+## 阶段七：产出 + 更新 Memory [必须执行]
+
+**此阶段有两个必须完成的子任务：(1) 生成飞书文档 (2) 创建/更新 memory 文件。两个都不可跳过。**
 
 ### 7.1 生成飞书文档
 
@@ -347,7 +441,9 @@ mkdir -p /tmp/.intelligence-hunter/{timestamp}
 
 创建完成后将文档链接发送给用户。
 
-### 7.2 更新 Memory
+### 7.2 更新 Memory [必须执行 — 飞书文档生成后立即执行]
+
+**不要在生成飞书文档后就结束。你必须继续执行 memory 更新。**
 
 #### targets.md 更新
 
@@ -359,7 +455,7 @@ mkdir -p /tmp/.intelligence-hunter/{timestamp}
 - 付费未关注的用户 → 追加到"X 用户"表（付费=是，已关注=否）
 - 更新 `last_updated` 时间戳
 
-**如果是首次执行**（文件不存在），按 memory-template.md 创建新文件。
+**如果是首次执行**（文件不存在），先创建 `memory/intelligence-hunter/` 目录，再按 memory-template.md 创建新文件。
 
 #### history.md 更新
 
@@ -371,6 +467,14 @@ mkdir -p /tmp/.intelligence-hunter/{timestamp}
 - 去重统计
 
 **如果是首次执行**，按 memory-template.md 创建新文件。
+
+### 检查点（最终）
+
+执行：
+```bash
+ls -la memory/intelligence-hunter/{chat_id}.targets.md memory/intelligence-hunter/{chat_id}.history.md
+```
+两个文件都必须存在。确认后，本次 skill 执行完成。
 
 ### 7.3 清理
 
@@ -388,5 +492,6 @@ mkdir -p /tmp/.intelligence-hunter/{timestamp}
 6. **关注要谨慎**：只关注真正的领域专家/KOL/机构，遇付费直接跳过
 7. **深度思考**：不要只做信息搬运，要有分析和洞察
 8. **互搏按需进行**：有新线索就追，没有就停，不机械跑满轮次
-9. **memory 及时更新**：每次执行结束都要更新 targets.md 和 history.md
+9. **memory 及时更新**：每次执行结束都必须更新 targets.md 和 history.md
 10. **不使用 X API**：所有 X 操作通过浏览器完成，避免封号风险
+11. **不可跳过阶段**：所有 [必须执行] 阶段必须逐一完成，context 不够就停下告知用户，不要跳到最后
