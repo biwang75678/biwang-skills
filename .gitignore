@@ -1,0 +1,9 @@
+feat-dev/
+
+# 敏感文件
+.env
+.env.*
+*.key
+*.pem
+credentials*
+*secret*

@@ -1,0 +1,6 @@
+{
+  "id": "biwang-skills",
+  "name": "Biwang Custom Skills",
+  "version": "0.1.0",
+  "skills": ["./skills"]
+}
